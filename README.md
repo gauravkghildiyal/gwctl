@@ -4,6 +4,8 @@ gwctl is a tool that improves the usability of the Gateway API by providing a be
 
 gwctl allows you to view all Gateway API policy types that are present in a cluster, as well as all "policy bindings" in a namespace (or across all namespaces). It also shows you the attached policies when you view any Gateway resource (like HTTPRoute, Gateway, GatewayClass, etc.)
 
+gwctl uses the `gateway.networking.k8s.io/policy=true` label to identify Policy CRDs (https://gateway-api.sigs.k8s.io/geps/gep-713/#kubectl-plugin)
+
 Please note that gwctl is <b>still under development and may have bugs</b>. There may be changes at various places, including the command-line interface, the output format, and the supported features.
 
 In the future, gwctl may be able to read status from the policy resource to determine if it has been applied correctly.
