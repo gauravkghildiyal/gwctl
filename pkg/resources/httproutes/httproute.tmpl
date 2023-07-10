@@ -1,0 +1,31 @@
+Name:      {{ .HTTPRoute.Name }}
+Namespace: {{ .HTTPRoute.Namespace }}
+Hostnames:
+    {{- range .HTTPRoute.Spec.Hostnames }}
+    - {{ . }}
+    {{- end }}
+ParentRefs:
+    {{- range .HTTPRoute.Spec.ParentRefs }}
+    - Kind:  {{ .Kind }}
+      Group: {{ .Group }}
+      Name:  {{ .Name }}
+    {{- end }}
+DirectlyAttachedPolicies:
+    {{- range .DirectlyAttachedPolicies }}
+    - Kind:  {{ .GroupVersionKind.Kind }}
+      Group: {{ .GroupVersionKind.Group }}
+      Name:  {{ .GetName }}
+    {{- end }}
+InheritedPolicies:
+    {{- range .InheritedPolicies }}
+    - Kind: {{ .GroupVersionKind.Kind }}
+      Group: {{ .GroupVersionKind.Group }}
+      Name: {{ .GetName }}
+      Target:
+          Kind:   {{ .Spec.TargetRef.Kind }}
+          Group:  {{ .Spec.TargetRef.Group }}
+          Name:   {{ .Spec.TargetRef.Name }}
+          {{- if .Spec.TargetRef.Namespace }}
+          Namespace: {{ .Spec.TargetRef.Namespace }}
+          {{- end }}
+    {{- end }}
