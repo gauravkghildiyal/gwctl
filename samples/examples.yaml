@@ -74,6 +74,8 @@ spec:
     name: demo-gateway-1
   hostnames:
   - "example.com"
+  - "example2.com"
+  - "example3.com"
   rules:
   - matches:
     - path:

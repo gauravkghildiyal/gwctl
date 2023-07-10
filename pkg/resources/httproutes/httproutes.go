@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"strings"
+	"text/tabwriter"
 
 	"github.com/gauravkghildiyal/gwctl/pkg/resources/gateways"
 	"github.com/gauravkghildiyal/gwctl/pkg/resources/policies"
@@ -72,6 +74,27 @@ func GetInheritedPolicies(ctx context.Context, clients *types.Clients, namespace
 		result = append(result, policies...)
 	}
 	return result, nil
+}
+
+func Print(httpRoutes []gatewayv1alpha2.HTTPRoute) {
+	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	row := []string{"NAME", "HOSTNAMES"}
+	tw.Write([]byte(strings.Join(row, "\t") + "\n"))
+
+	for _, httpRoute := range httpRoutes {
+		var hostNames []string
+		for _, hostName := range httpRoute.Spec.Hostnames {
+			hostNames = append(hostNames, string(hostName))
+		}
+		hostNamesOutput := strings.Join(hostNames, ",")
+		if cnt := len(hostNames); cnt > 2 {
+			hostNamesOutput = fmt.Sprintf("%v + %v more", strings.Join(hostNames[:2], ","), cnt-2)
+		}
+
+		row := []string{httpRoute.Name, hostNamesOutput}
+		tw.Write([]byte(strings.Join(row, "\t") + "\n"))
+	}
+	tw.Flush()
 }
 
 type describeView struct {

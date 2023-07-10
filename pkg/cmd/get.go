@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gauravkghildiyal/gwctl/pkg/resources/httproutes"
 	"github.com/gauravkghildiyal/gwctl/pkg/resources/policies"
 	"github.com/gauravkghildiyal/gwctl/pkg/types"
 	"github.com/spf13/cobra"
@@ -19,7 +20,7 @@ func NewGetCommand(clients *types.Clients) *cobra.Command {
 	flags := &getFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "get {policies|policycrds}",
+		Use:   "get {policies|policycrds|httproutes}",
 		Short: "Display one or many resources",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -41,17 +42,23 @@ func runGet(args []string, clients *types.Clients, flags *getFlags) {
 
 	switch kind {
 	case "policy", "policies":
-		p, err := policies.List(context.TODO(), clients, ns)
+		list, err := policies.List(context.TODO(), clients, ns)
 		if err != nil {
 			panic(err)
 		}
-		policies.Print(p)
+		policies.Print(list)
 	case "policycrds":
-		p, err := policies.ListCRDs(context.TODO(), clients)
+		list, err := policies.ListCRDs(context.TODO(), clients)
 		if err != nil {
 			panic(err)
 		}
-		policies.PrintCRDs(p)
+		policies.PrintCRDs(list)
+	case "httproute", "httproutes":
+		list, err := httproutes.List(context.TODO(), clients, ns)
+		if err != nil {
+			panic(err)
+		}
+		httproutes.Print(list)
 	default:
 		fmt.Fprintf(os.Stderr, "Unrecognized RESOURCE_TYPE\n")
 	}
