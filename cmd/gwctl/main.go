@@ -3,10 +3,8 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"math/rand"
 	"os"
-	"os/exec"
-	"time"
+	"path"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
@@ -20,14 +18,12 @@ import (
 )
 
 func main() {
-	// TODO: Replace proxying with proper authentication through kubeconfig.
-	port := rand.Intn(30000) + 30000
-	if err := exec.Command("kubectl", "proxy", "-p", fmt.Sprintf("%v", port)).Start(); err != nil {
-		panic(err)
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		kubeconfig = path.Join(os.Getenv("HOME"), ".kube/config")
 	}
-	time.Sleep(100 * time.Millisecond)
 
-	restConfig, err := clientcmd.BuildConfigFromFlags(fmt.Sprintf("http://localhost:%v", port), "")
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get restConfig from BuildConfigFromFlags: %v", err))
 	}
