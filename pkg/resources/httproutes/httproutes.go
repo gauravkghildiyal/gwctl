@@ -4,79 +4,117 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"html/template"
 	"os"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/gauravkghildiyal/gwctl/pkg/resources/gateways"
-	"github.com/gauravkghildiyal/gwctl/pkg/resources/policies"
-	"github.com/gauravkghildiyal/gwctl/pkg/types"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	"sigs.k8s.io/yaml"
+
+	"github.com/gauravkghildiyal/gwctl/pkg/policymanager"
+	"github.com/gauravkghildiyal/gwctl/pkg/resources/gateways"
+	"github.com/gauravkghildiyal/gwctl/pkg/resources/namespaces"
+	"github.com/gauravkghildiyal/gwctl/pkg/types"
 )
 
-func List(ctx context.Context, dc *types.Clients, namespace string) ([]gatewayv1alpha2.HTTPRoute, error) {
-	httpRoutes := &gatewayv1alpha2.HTTPRouteList{}
-	if err := dc.Client.List(ctx, httpRoutes, client.InNamespace(namespace)); err != nil {
-		return []gatewayv1alpha2.HTTPRoute{}, nil
+func List(ctx context.Context, params *types.Params, namespace string) ([]gatewayv1beta1.HTTPRoute, error) {
+	httpRoutes := &gatewayv1beta1.HTTPRouteList{}
+	if err := params.Client.List(ctx, httpRoutes, client.InNamespace(namespace)); err != nil {
+		return []gatewayv1beta1.HTTPRoute{}, err
 	}
 
 	return httpRoutes.Items, nil
 }
 
-func Get(ctx context.Context, clients *types.Clients, namespace, name string) (gatewayv1alpha2.HTTPRoute, error) {
-	httpRoute := &gatewayv1alpha2.HTTPRoute{}
+func Get(ctx context.Context, params *types.Params, namespace, name string) (gatewayv1beta1.HTTPRoute, error) {
+	httpRoute := &gatewayv1beta1.HTTPRoute{}
 	nn := apimachinerytypes.NamespacedName{Namespace: namespace, Name: name}
-	if err := clients.Client.Get(ctx, nn, httpRoute); err != nil {
-		return gatewayv1alpha2.HTTPRoute{}, nil
+	if err := params.Client.Get(ctx, nn, httpRoute); err != nil {
+		return gatewayv1beta1.HTTPRoute{}, err
 	}
 
 	return *httpRoute, nil
 }
 
-func GetAttachedPolicies(ctx context.Context, clients *types.Clients, namespace, name string) ([]unstructured.Unstructured, error) {
-	httpRoute := &gatewayv1alpha2.HTTPRoute{}
-	gvks, _, err := clients.Client.Scheme().ObjectKinds(httpRoute)
+func GetAttachedPolicies(ctx context.Context, params *types.Params, namespace, name string) ([]policymanager.Policy, error) {
+	httpRoute := &gatewayv1beta1.HTTPRoute{}
+	gvks, _, err := params.Client.Scheme().ObjectKinds(httpRoute)
 	if err != nil {
-		return []unstructured.Unstructured{}, nil
+		return []policymanager.Policy{}, err
 	}
 
-	ns := gatewayv1alpha2.Namespace(namespace)
-	targetRef := gatewayv1alpha2.PolicyTargetReference{
-		Group:     gatewayv1alpha2.Group(gvks[0].Group),
-		Kind:      gatewayv1alpha2.Kind(gvks[0].Kind),
-		Name:      gatewayv1alpha2.ObjectName(name),
-		Namespace: &ns,
+	objRef := policymanager.ObjRef{
+		Group:     gvks[0].Group,
+		Kind:      gvks[0].Kind,
+		Name:      name,
+		Namespace: namespace,
 	}
-	return policies.ListAttachedTo(ctx, clients, targetRef)
+	return params.PolicyManager.PoliciesAttachedTo(objRef), nil
 }
 
-func GetInheritedPolicies(ctx context.Context, clients *types.Clients, namespace, name string) ([]unstructured.Unstructured, error) {
-	var result []unstructured.Unstructured
+func GetEffectivePolicies(ctx context.Context, params *types.Params, namespace, name string) (map[string]map[policymanager.PolicyCrdID]policymanager.Policy, error) {
+	result := make(map[string]map[policymanager.PolicyCrdID]policymanager.Policy)
 
-	httpRoute, err := Get(ctx, clients, namespace, name)
+	// Step 1: Aggregate all policies of the HTTPRoute and the HTTPRoute-namespace.
+	httpRoutePolicies, err := GetAttachedPolicies(ctx, params, namespace, name)
+	if err != nil {
+		return nil, err
+	}
+	httpRouteNamespacePolicies, err := namespaces.GetAttachedPolicies(ctx, params, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Merge HTTPRoute and HTTPRoute-namespace policies by their kind.
+	httpRoutePoliciesByKind, err := policymanager.MergePoliciesOfSimilarKind(httpRoutePolicies)
+	if err != nil {
+		return nil, err
+	}
+	httpRouteNamespacePoliciesByKind, err := policymanager.MergePoliciesOfSimilarKind(httpRouteNamespacePolicies)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 3: Fetch the HTTPRoute to identify the Gateways it is attached to.
+	httpRoute, err := Get(ctx, params, namespace, name)
 	if err != nil {
 		return result, err
 	}
 
-	for _, parentRef := range httpRoute.Spec.ParentRefs {
+	// Step 4: Loop through all Gateways and merge policies for each Gateway. End
+	// result is we get policies partitioned by each Gateway.
+	for _, gatewayRef := range httpRoute.Spec.ParentRefs {
 		ns := namespace
-		if parentRef.Namespace != nil {
-			ns = string(*parentRef.Namespace)
+		if gatewayRef.Namespace != nil {
+			ns = string(*gatewayRef.Namespace)
 		}
-		policies, err := gateways.GetAllPolicies(ctx, clients, string(ns), string(parentRef.Name))
+
+		gatewayPoliciesByKind, err := gateways.GetEffectivePolicies(ctx, params, string(ns), string(gatewayRef.Name))
 		if err != nil {
 			return result, err
 		}
-		result = append(result, policies...)
+
+		// Merge all hierarchial policies.
+		mergedPolicies, err := policymanager.MergePoliciesOfDifferentHierarchy(gatewayPoliciesByKind, httpRouteNamespacePoliciesByKind)
+		if err != nil {
+			return nil, err
+		}
+
+		mergedPolicies, err = policymanager.MergePoliciesOfDifferentHierarchy(mergedPolicies, httpRoutePoliciesByKind)
+		if err != nil {
+			return nil, err
+		}
+
+		gatewayID := fmt.Sprintf("%v/%v", ns, gatewayRef.Name)
+		result[gatewayID] = mergedPolicies
 	}
+
 	return result, nil
 }
 
-func Print(httpRoutes []gatewayv1alpha2.HTTPRoute) {
+func Print(httpRoutes []gatewayv1beta1.HTTPRoute) {
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	row := []string{"NAME", "HOSTNAMES"}
 	tw.Write([]byte(strings.Join(row, "\t") + "\n"))
@@ -98,34 +136,52 @@ func Print(httpRoutes []gatewayv1alpha2.HTTPRoute) {
 }
 
 type describeView struct {
-	HTTPRoute                gatewayv1alpha2.HTTPRoute
-	DirectlyAttachedPolicies []unstructured.Unstructured
-	InheritedPolicies        []types.GenericPolicy
+	Name                     string                                                        `json:",omitempty"`
+	Namespace                string                                                        `json:",omitempty"`
+	Hostnames                []gatewayv1beta1.Hostname                                     `json:",omitempty"`
+	ParentRefs               []gatewayv1beta1.ParentReference                              `json:",omitempty"`
+	DirectlyAttachedPolicies []policymanager.ObjRef                                        `json:",omitempty"`
+	EffectivePolicies        map[string]map[policymanager.PolicyCrdID]policymanager.Policy `json:",omitempty"`
 }
 
-//go:embed httproute.tmpl
-var httpRouteTmpl string
-
-func PrintDescribeView(ctx context.Context, clients *types.Clients, httpRoutes []gatewayv1alpha2.HTTPRoute) {
+func PrintDescribeView(ctx context.Context, params *types.Params, httpRoutes []gatewayv1beta1.HTTPRoute) {
 	for i, httpRoute := range httpRoutes {
-		directlyAttachedPolicies, err := GetAttachedPolicies(ctx, clients, httpRoute.Namespace, httpRoute.Name)
+		directlyAttachedPolicies, err := GetAttachedPolicies(ctx, params, httpRoute.Namespace, httpRoute.Name)
 		if err != nil {
 			panic(err)
 		}
-		inheritedPolicies, err := GetInheritedPolicies(ctx, clients, httpRoute.Namespace, httpRoute.Name)
+		effectivePolicies, err := GetEffectivePolicies(ctx, params, httpRoute.Namespace, httpRoute.Name)
 		if err != nil {
 			panic(err)
 		}
 
-		view := &describeView{
-			HTTPRoute:                httpRoute,
-			DirectlyAttachedPolicies: directlyAttachedPolicies,
-			InheritedPolicies:        policies.UnstructuredToGeneric(clients, inheritedPolicies),
+		views := []describeView{
+			{
+				Name:      httpRoute.GetName(),
+				Namespace: httpRoute.GetNamespace(),
+			},
+			{
+				Hostnames:  httpRoute.Spec.Hostnames,
+				ParentRefs: httpRoute.Spec.ParentRefs,
+			},
+		}
+		if policyRefs := policymanager.ToPolicyRefs(directlyAttachedPolicies); len(policyRefs) != 0 {
+			views = append(views, describeView{
+				DirectlyAttachedPolicies: policyRefs,
+			})
+		}
+		if len(effectivePolicies) != 0 {
+			views = append(views, describeView{
+				EffectivePolicies: effectivePolicies,
+			})
 		}
 
-		tmpl := template.Must(template.New("").Parse(httpRouteTmpl))
-		if err := tmpl.Execute(os.Stdout, view); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to execute template: %v", err)
+		for _, view := range views {
+			b, err := yaml.Marshal(view)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Print(string(b))
 		}
 
 		if i+1 != len(httpRoutes) {

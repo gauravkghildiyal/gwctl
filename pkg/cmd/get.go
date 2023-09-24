@@ -16,7 +16,7 @@ type getFlags struct {
 	allNamespaces bool
 }
 
-func NewGetCommand(clients *types.Clients) *cobra.Command {
+func NewGetCommand(params *types.Params) *cobra.Command {
 	flags := &getFlags{}
 
 	cmd := &cobra.Command{
@@ -24,7 +24,7 @@ func NewGetCommand(clients *types.Clients) *cobra.Command {
 		Short: "Display one or many resources",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			runGet(args, clients, flags)
+			runGet(args, params, flags)
 		},
 	}
 	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "default", "")
@@ -33,7 +33,7 @@ func NewGetCommand(clients *types.Clients) *cobra.Command {
 	return cmd
 }
 
-func runGet(args []string, clients *types.Clients, flags *getFlags) {
+func runGet(args []string, params *types.Params, flags *getFlags) {
 	kind := args[0]
 	ns := flags.namespace
 	if flags.allNamespaces {
@@ -42,19 +42,13 @@ func runGet(args []string, clients *types.Clients, flags *getFlags) {
 
 	switch kind {
 	case "policy", "policies":
-		list, err := policies.List(context.TODO(), clients, ns)
-		if err != nil {
-			panic(err)
-		}
+		list := params.PolicyManager.GetPolicies()
 		policies.Print(list)
 	case "policycrds":
-		list, err := policies.ListCRDs(context.TODO(), clients)
-		if err != nil {
-			panic(err)
-		}
+		list := params.PolicyManager.GetCRDs()
 		policies.PrintCRDs(list)
 	case "httproute", "httproutes":
-		list, err := httproutes.List(context.TODO(), clients, ns)
+		list, err := httproutes.List(context.TODO(), params, ns)
 		if err != nil {
 			panic(err)
 		}

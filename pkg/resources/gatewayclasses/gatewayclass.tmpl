@@ -1,9 +1,0 @@
-Name:           {{ .GatewayClass.Name }}
-ControllerName: {{ .GatewayClass.Spec.ControllerName }} 
-Description:    {{ .GatewayClass.Spec.Description }} 
-DirectlyAttachedPolicies:
-    {{- range .DirectlyAttachedPolicies }}
-    - Kind: {{ .GroupVersionKind.Kind }}
-      Group: {{ .GroupVersionKind.Group }}
-      Name: {{ .GetName }}
-    {{- end }}

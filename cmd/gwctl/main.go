@@ -1,23 +1,33 @@
 package main
 
 import (
+	"context"
 	_ "embed"
+	"flag"
 	"fmt"
 	"os"
 	"path"
 
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	"github.com/gauravkghildiyal/gwctl/pkg/cmd"
+	"github.com/gauravkghildiyal/gwctl/pkg/policymanager"
 	"github.com/gauravkghildiyal/gwctl/pkg/types"
 	"github.com/spf13/cobra"
+	cobraflag "github.com/spf13/pflag"
 )
 
 func main() {
+	klog.InitFlags(nil)
+	flag.Parse()
+	cobraflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		kubeconfig = path.Join(os.Getenv("HOME"), ".kube/config")
@@ -37,16 +47,24 @@ func main() {
 
 	dc := dynamic.NewForConfigOrDie(restConfig)
 
-	clients := &types.Clients{
-		Client: client,
-		DC:     dc,
+	policyManager := policymanager.New(dc)
+	if err := policyManager.Init(context.Background()); err != nil {
+		panic(err)
+	}
+
+	params := &types.Params{
+		Client:          client,
+		DC:              dc,
+		PolicyManager:   policyManager,
+		DiscoveryClient: discovery.NewDiscoveryClientForConfigOrDie(restConfig),
 	}
 
 	rootCmd := &cobra.Command{
 		Use: "gwctl",
 	}
-	rootCmd.AddCommand(cmd.NewGetCommand(clients))
-	rootCmd.AddCommand(cmd.NewDescribeCommand(clients))
+	rootCmd.AddCommand(cmd.NewGetCommand(params))
+	rootCmd.AddCommand(cmd.NewDescribeCommand(params))
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

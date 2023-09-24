@@ -123,6 +123,7 @@ spec:
         value: /example
     backendRefs:
     - name: demo-svc
+      namespace: default
       port: 80
 ---
 kind: HTTPRoute
@@ -149,14 +150,34 @@ spec:
 apiVersion: bar.com/v1
 kind: TimeoutPolicy
 metadata:
-  name: demo-timeout-policy-1
+  name: demo-timeout-policy-on-gatewayclass
 spec:
   targetRef:
     group: "gateway.networking.k8s.io"
     kind: GatewayClass
     name: foo-com-external-gateway-class
+  override:
+    timeout1: "parent"
+    timeout3: "parent"
   default:
-    sampleField: "hello"
+    timeout1: "parent"
+    timeout4: "parent"
+---
+apiVersion: bar.com/v1
+kind: TimeoutPolicy
+metadata:
+  name: demo-timeout-policy-on-namespace
+spec:
+  targetRef:
+    group: ""
+    kind: Namespace
+    name: default
+  override:
+    timeout1: "child"
+    timeout2: "child"
+    timeout3: "child"
+  default:
+    timeout4: "child"
 ---
 apiVersion: foo.com/v1
 kind: RetryOnPolicy
@@ -181,8 +202,6 @@ spec:
     group: "gateway.networking.k8s.io"
     kind: HTTPRoute
     name: demo-httproute-1
-  default:
-    sampleField: "hello"
 ---
 apiVersion: foo.com/v1
 kind: RetryOnPolicy
