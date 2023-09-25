@@ -89,11 +89,11 @@ func PrintDescribeView(ctx context.Context, params *types.Params, gwClasses []ga
 			if err != nil {
 				panic(err)
 			}
-			fmt.Print(string(b))
+			fmt.Fprint(params.Out, string(b))
 		}
 
 		if i+1 != len(gwClasses) {
-			fmt.Printf("\n\n")
+			fmt.Fprintf(params.Out, "\n\n")
 		}
 	}
 }

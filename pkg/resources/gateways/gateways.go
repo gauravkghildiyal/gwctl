@@ -172,11 +172,11 @@ func PrintDescribeView(ctx context.Context, params *types.Params, gws []gatewayv
 			if err != nil {
 				panic(err)
 			}
-			fmt.Print(string(b))
+			fmt.Fprint(params.Out, string(b))
 		}
 
 		if i+1 != len(gws) {
-			fmt.Printf("\n\n")
+			fmt.Fprintf(params.Out, "\n\n")
 		}
 	}
 }

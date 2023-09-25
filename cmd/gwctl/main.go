@@ -55,8 +55,9 @@ func main() {
 	params := &types.Params{
 		Client:          client,
 		DC:              dc,
-		PolicyManager:   policyManager,
 		DiscoveryClient: discovery.NewDiscoveryClientForConfigOrDie(restConfig),
+		PolicyManager:   policyManager,
+		Out:             os.Stdout,
 	}
 
 	rootCmd := &cobra.Command{

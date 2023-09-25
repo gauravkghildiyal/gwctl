@@ -90,6 +90,9 @@ func GetEffectivePolicies(ctx context.Context, params *types.Params, namespace, 
 		if gatewayRef.Namespace != nil {
 			ns = string(*gatewayRef.Namespace)
 		}
+		if ns == "" {
+			ns = "default"
+		}
 
 		gatewayPoliciesByKind, err := gateways.GetEffectivePolicies(ctx, params, string(ns), string(gatewayRef.Name))
 		if err != nil {
@@ -181,11 +184,11 @@ func PrintDescribeView(ctx context.Context, params *types.Params, httpRoutes []g
 			if err != nil {
 				panic(err)
 			}
-			fmt.Print(string(b))
+			fmt.Fprint(params.Out, string(b))
 		}
 
 		if i+1 != len(httpRoutes) {
-			fmt.Printf("\n\n")
+			fmt.Fprintf(params.Out, "\n\n")
 		}
 	}
 }

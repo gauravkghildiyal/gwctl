@@ -207,7 +207,10 @@ func PolicyFromUnstrucutred(u unstructured.Unstructured, policyCRDs map[PolicyCr
 		Name:      string(structuredPolicy.Spec.TargetRef.Name),
 		Namespace: structuredPolicy.GetNamespace(),
 	}
-	if structuredPolicy.Spec.TargetRef.Namespace != nil && *structuredPolicy.Spec.TargetRef.Namespace != "" {
+	if result.targetRef.Namespace == "default" {
+		result.targetRef.Namespace = ""
+	}
+	if structuredPolicy.Spec.TargetRef.Namespace != nil {
 		result.targetRef.Namespace = string(*structuredPolicy.Spec.TargetRef.Namespace)
 	}
 
@@ -239,6 +242,18 @@ func (p Policy) IsDirect() bool {
 }
 
 func (p Policy) IsAttachedTo(objRef ObjRef) bool {
+	if p.targetRef.Kind == "Namespace" && p.targetRef.Name == "" {
+		p.targetRef.Name = "default"
+	}
+	if objRef.Kind == "Namespace" && objRef.Name == "" {
+		objRef.Name = "default"
+	}
+	if p.targetRef.Kind != "Namespace" && p.targetRef.Namespace == "" {
+		p.targetRef.Namespace = "default"
+	}
+	if objRef.Kind != "Namespace" && objRef.Namespace == "" {
+		objRef.Namespace = "default"
+	}
 	return p.targetRef == objRef
 }
 
