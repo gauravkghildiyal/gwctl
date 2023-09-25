@@ -27,7 +27,7 @@ func NewDescribeCommand(params *types.Params) *cobra.Command {
 	flags := &describeFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "describe {policies|httproutes|gateways|gatewayclasses} RESOURCE_NAME",
+		Use:   "describe {policies|httproutes|gateways|gatewayclasses|backends} RESOURCE_NAME",
 		Short: "Show details of a specific resource or group of resources",
 		Args:  cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
