@@ -63,7 +63,7 @@ func listOrGet(ctx context.Context, params *types.Params, resourceType, namespac
 	return backendsList.Items, nil
 }
 
-func apiResourceFromResourceType(resourceType string, discoveryClient *discovery.DiscoveryClient) (metav1.APIResource, error) {
+func apiResourceFromResourceType(resourceType string, discoveryClient discovery.DiscoveryInterface) (metav1.APIResource, error) {
 	resourceGroups, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
 		return metav1.APIResource{}, err

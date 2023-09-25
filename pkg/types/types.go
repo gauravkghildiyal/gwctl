@@ -12,5 +12,5 @@ type Params struct {
 	Client          client.Client
 	DC              dynamic.Interface
 	PolicyManager   *policymanager.PolicyManager
-	DiscoveryClient *discovery.DiscoveryClient
+	DiscoveryClient discovery.DiscoveryInterface
 }
