@@ -3,7 +3,7 @@ package policies
 import (
 	_ "embed"
 	"fmt"
-	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -13,8 +13,14 @@ import (
 	"github.com/gauravkghildiyal/gwctl/pkg/types"
 )
 
-func Print(policies []policymanager.Policy) {
-	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+func Print(params *types.Params, policies []policymanager.Policy) {
+	sort.Slice(policies, func(i, j int) bool {
+		a := fmt.Sprintf("%v/%v", policies[i].Unstructured().GetNamespace(), policies[i].Unstructured().GetName())
+		b := fmt.Sprintf("%v/%v", policies[j].Unstructured().GetNamespace(), policies[j].Unstructured().GetName())
+		return a < b
+	})
+
+	tw := tabwriter.NewWriter(params.Out, 0, 0, 2, ' ', 0)
 	row := []string{"POLICYNAME", "POLICYKIND", "TARGETNAME", "TARGETKIND"}
 	tw.Write([]byte(strings.Join(row, "\t") + "\n"))
 
@@ -30,8 +36,14 @@ func Print(policies []policymanager.Policy) {
 	tw.Flush()
 }
 
-func PrintCRDs(policyCRDs []policymanager.PolicyCRD) {
-	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+func PrintCRDs(params *types.Params, policyCRDs []policymanager.PolicyCRD) {
+	sort.Slice(policyCRDs, func(i, j int) bool {
+		a := fmt.Sprintf("%v/%v", policyCRDs[i].CRD().GetNamespace(), policyCRDs[i].CRD().GetName())
+		b := fmt.Sprintf("%v/%v", policyCRDs[j].CRD().GetNamespace(), policyCRDs[j].CRD().GetName())
+		return a < b
+	})
+
+	tw := tabwriter.NewWriter(params.Out, 0, 0, 2, ' ', 0)
 	row := []string{"CRD_NAME", "CRD_GROUP", "CRD_KIND", "CRD_INHERITED", "CRD_SCOPE"}
 	tw.Write([]byte(strings.Join(row, "\t") + "\n"))
 
@@ -57,6 +69,12 @@ type describeView struct {
 }
 
 func PrintDescribeView(params *types.Params, policies []policymanager.Policy) {
+	sort.Slice(policies, func(i, j int) bool {
+		a := fmt.Sprintf("%v/%v", policies[i].Unstructured().GetNamespace(), policies[i].Unstructured().GetName())
+		b := fmt.Sprintf("%v/%v", policies[j].Unstructured().GetNamespace(), policies[j].Unstructured().GetName())
+		return a < b
+	})
+
 	for i, policy := range policies {
 		targetRef := policy.TargetRef()
 		views := []describeView{
@@ -76,11 +94,11 @@ func PrintDescribeView(params *types.Params, policies []policymanager.Policy) {
 			if err != nil {
 				panic(err)
 			}
-			fmt.Print(string(b))
+			fmt.Fprint(params.Out, string(b))
 		}
 
 		if i+1 != len(policies) {
-			fmt.Printf("\n\n")
+			fmt.Fprintf(params.Out, "\n\n")
 		}
 	}
 }

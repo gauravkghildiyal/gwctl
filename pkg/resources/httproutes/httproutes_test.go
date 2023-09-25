@@ -177,7 +177,7 @@ func TestPrintDescribeView(t *testing.T) {
 	params := types.MustParamsForTest(t, common.MustClientsForTest(t, objects...))
 	httpRoutes, err := List(context.Background(), params, "")
 	if err != nil {
-		t.Fatalf("Failed to List HTTPRoutes: %v", err)
+		t.Fatalf("Failed to List HTTPRoutespkg/resources/httproutes/httproutes_test.go: %v", err)
 	}
 	PrintDescribeView(context.Background(), params, httpRoutes)
 

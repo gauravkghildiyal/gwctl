@@ -43,10 +43,10 @@ func runGet(args []string, params *types.Params, flags *getFlags) {
 	switch kind {
 	case "policy", "policies":
 		list := params.PolicyManager.GetPolicies()
-		policies.Print(list)
+		policies.Print(params, list)
 	case "policycrds":
 		list := params.PolicyManager.GetCRDs()
-		policies.PrintCRDs(list)
+		policies.PrintCRDs(params, list)
 	case "httproute", "httproutes":
 		list, err := httproutes.List(context.TODO(), params, ns)
 		if err != nil {

@@ -161,8 +161,8 @@ func (p PolicyCRD) IsDirect() bool {
 	return p.crd.GetLabels()[gatewayPolicyLabelKey] == "direct"
 }
 
-func (p PolicyCRD) CRD() apiextensionsv1.CustomResourceDefinition {
-	return p.crd
+func (p PolicyCRD) CRD() *apiextensionsv1.CustomResourceDefinition {
+	return p.crd.DeepCopy()
 }
 
 // IsClusterScoped returns true if the CRD is cluster scoped. Such policies can
