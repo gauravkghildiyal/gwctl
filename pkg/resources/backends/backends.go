@@ -69,6 +69,10 @@ func apiResourceFromResourceType(resourceType string, discoveryClient discovery.
 		return metav1.APIResource{}, err
 	}
 	for _, resourceGroup := range resourceGroups {
+		gv, err := schema.ParseGroupVersion(resourceGroup.GroupVersion)
+		if err != nil {
+			return metav1.APIResource{}, err
+		}
 		for _, resource := range resourceGroup.APIResources {
 			var choices []string
 			choices = append(choices, resource.Kind)
@@ -76,7 +80,7 @@ func apiResourceFromResourceType(resourceType string, discoveryClient discovery.
 			choices = append(choices, resource.ShortNames...)
 			choices = append(choices, resource.SingularName)
 			if slices.Contains(choices, resourceType) {
-				resource.Version = resourceGroup.GroupVersion
+				resource.Version = gv.Version
 				return resource, nil
 			}
 		}
