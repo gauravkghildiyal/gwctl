@@ -1,3 +1,7 @@
+> [!NOTE]
+> You can find the latest developments in the gwctl directory of the Gateway API repository: https://github.com/kubernetes-sigs/gateway-api/tree/main/gwctl"
+
+
 # gwctl
 
 gwctl is a tool that improves the usability of the Gateway API by providing a better way to view and manage policies ([GEP-713](https://gateway-api.sigs.k8s.io/geps/gep-713)). The aim is to make it available as a standalone binary, a kubectl plugin, and a library.
