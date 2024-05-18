@@ -1,5 +1,5 @@
 > [!NOTE]
-> You can find the latest developments in the gwctl directory of the Gateway API repository: https://github.com/kubernetes-sigs/gateway-api/tree/main/gwctl"
+> You can find the latest developments in the gwctl directory of the Gateway API repository: https://github.com/kubernetes-sigs/gateway-api/tree/main/gwctl
 
 
 # gwctl
